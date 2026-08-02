@@ -601,6 +601,7 @@ export class RoomBattle extends RoomGame<RoomBattlePlayer> {
 	options: RoomBattleOptions;
 	frozen?: boolean;
 	dataResolvers?: [((args: string[]) => void), ((error: Error) => void)][];
+	private readonly ticomonPlayerAvatars = new Map<'p1' | 'p2', User['avatar']>();
 	constructor(room: GameRoom, options: RoomBattleOptions) {
 		super(room);
 		const format = Dex.formats.get(options.format, true);
@@ -828,10 +829,11 @@ export class RoomBattle extends RoomGame<RoomBattlePlayer> {
 			break;
 
 		case 'update':
-			for (const line of lines.slice(1)) {
+			for (let line of lines.slice(1)) {
 				if (line.startsWith('|turn|')) {
 					this.turn = parseInt(line.slice(6));
 				}
+				line = this.applyTicoMonPlayerAvatar(line);
 				this.room.add(line);
 				if (line.startsWith(`|bigerror|You will auto-tie if `) && Config.allowrequestingties && !this.room.tour) {
 					this.room.add(`|-hint|If you want to tie earlier, consider using \`/offertie\`.`);
@@ -1067,10 +1069,44 @@ export class RoomBattle extends RoomGame<RoomBattlePlayer> {
 				this.timer.markTicoMon();
 			}
 			this.timer.checkActivity();
-			this.room.add(`|player|${player.slot}|${user.name}|${user.avatar}|`);
+			this.room.add(this.getPlayerProtocolLine(player, user));
 			Chat.runHandlers('onBattleJoin', player.slot, user, this);
 		}
 	}
+	private getPlayerProtocolLine(player: RoomBattlePlayer, user: User, name = user.name) {
+		return `|player|${player.slot}|${name}|${user.avatar}|`;
+	}
+	private applyTicoMonPlayerAvatar(line: string) {
+		if (!line.startsWith('|player|')) return line;
+		const parts = line.split('|');
+		const slot = parts[2];
+		if ((slot !== 'p1' && slot !== 'p2') || parts.length < 5 || !this.ticomonPlayerAvatars.has(slot)) {
+			return line;
+		}
+		parts[4] = String(this.ticomonPlayerAvatars.get(slot));
+		return parts.join('|');
+	}
+
+	updatePlayerAvatar(user: User) {
+		const player = this.playerTable[user.id];
+		if (!player || (player.slot !== 'p1' && player.slot !== 'p2')) return false;
+
+		const playerUser = player.getUser();
+		if (!playerUser || playerUser.id !== user.id) return false;
+		this.ticomonPlayerAvatars.set(player.slot, playerUser.avatar);
+		const protocolLine = this.getPlayerProtocolLine(player, playerUser);
+		const playerPrefix = `|player|${player.slot}|`;
+		for (let i = this.room.log.log.length - 1; i >= 0; i--) {
+			const line = this.room.log.log[i];
+			if (!line.startsWith(playerPrefix)) continue;
+			if (line === protocolLine) return false;
+			break;
+		}
+
+		this.room.add(protocolLine).update();
+		return true;
+	}
+
 	override onLeave(user: User, oldUserid?: ID) {
 		const player = this.playerTable[oldUserid || user.id];
 		if (player?.active) {
@@ -1231,7 +1267,7 @@ export class RoomBattle extends RoomGame<RoomBattlePlayer> {
 			void this.stream.write(`>player ${slot} ` + JSON.stringify(options));
 			if (playerOpts) player.hasTeam = true;
 
-			this.room.add(`|player|${slot}|${player.name}|${user.avatar}|`);
+			this.room.add(this.getPlayerProtocolLine(player, user, player.name));
 			Chat.runHandlers('onBattleJoin', slot as string, user, this);
 		} else {
 			player.active = false;
