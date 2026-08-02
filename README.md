@@ -69,8 +69,20 @@ If you'd like to contribute to programming and don't know where to start, feel f
   [10]: https://github.com/smogon/pokemon-showdown/issues/2444
 
 
+TicoMon integration notice
+-------------------------------------------------------------------------
+
+This fork is used by the independent, non-commercial, fan-made TicoMon
+project. TicoMon is not affiliated with, endorsed by, sponsored by, or
+associated with Nintendo, The Pokémon Company, Game Freak, Creatures Inc.,
+Smogon, or Pokémon Showdown. The fork does not imply authorization or
+endorsement by any of those parties.
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the source, license,
+and attribution details for this fork and its TicoMon changes.
+
 License
-------------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 Pokémon Showdown's server is distributed under the terms of the [MIT License][11].
 
